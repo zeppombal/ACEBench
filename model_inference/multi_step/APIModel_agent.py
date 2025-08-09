@@ -1,8 +1,7 @@
+import os
+import re
 
 from openai import OpenAI
-import os
-import re 
-
 
 MULTI_TURN_AGENT_PROMPT_SYSTEM_ZH = """你是一个AI系统，你的角色为system，请根据给定的API说明和对话历史1..t，为角色system生成在步骤t+1中生成相应的内容。
 1 如果上一步提供的信息完整，能够正常进行api的调用，你应该调用的API请求，API请求以[ApiName(key1='value1', key2='value2', ...)]的格式输出，将ApiName替换为实际的API名称，将key1、key2等替换为实际的参数名称，将value1、value2替换为实际参数取值。输出应以方括号"["开头，以方括号"]"结尾。API请求有多个时以英文逗号隔开，比如[ApiName(key1='value1', key2='value2', ...), ApiName(key1='value1', key2='value2', ...), ...]。不要在输出中输出任何其他解释或提示或API调用的结果。\n 
@@ -19,7 +18,9 @@ agent: 进行API请求调用的AI系统角色
 execution: 执行api调用并返回结果
 """
 
-MULTI_TURN_AGENT_PROMPT_USER_ZH = """以下是你可以调用的API列表（JSON格式）：{functions}。对话历史：{history}\n"""
+MULTI_TURN_AGENT_PROMPT_USER_ZH = (
+    """以下是你可以调用的API列表（JSON格式）：{functions}。对话历史：{history}\n"""
+)
 
 FOOD_SYSTEM_ZH = """下面是不同用户的账号信息和密码，需要时使用: 
 {
@@ -60,11 +61,20 @@ FOOD_SYSTEM_EN = """Below is the account information and passwords for different
 }"""
 
 
-class APIAgent_step():
+class APIAgent_step:
 
-    def __init__(self, model_name, time, functions, temperature=0.001, top_p=1, max_tokens=1000, language="zh") -> None:
-        self.model_name = model_name.lower()
-        
+    def __init__(
+        self,
+        model_name,
+        time,
+        functions,
+        temperature=0.001,
+        top_p=1,
+        max_tokens=1000,
+        language="zh",
+    ) -> None:
+        self.model_name = model_name
+
         if "gpt" in self.model_name:
             api_key = os.getenv("GPT_AGENT_API_KEY")
             base_url = os.getenv("GPT_AGENT_BASE_URL")
@@ -77,6 +87,9 @@ class APIAgent_step():
         elif "kimi" in self.model_name:
             api_key = os.getenv("KIMI_API_KEY")
             base_url = os.getenv("KIMI_BASE_URL")
+        elif "/" in self.model_name:
+            api_key = "EMPTY"
+            base_url = "http://localhost:8000/v1"
         else:
             raise ValueError(f"Unknown model name: {self.model_name}")
 
@@ -88,16 +101,19 @@ class APIAgent_step():
         self.functions = functions
         self.language = language
 
-
     def respond(self, history) -> None:
 
         current_message = {}
         if self.language == "zh":
-            system_prompt = MULTI_TURN_AGENT_PROMPT_SYSTEM_ZH.format(time = self.time)
-            user_prompt = MULTI_TURN_AGENT_PROMPT_USER_ZH.format(functions = self.functions, history = history)
+            system_prompt = MULTI_TURN_AGENT_PROMPT_SYSTEM_ZH.format(time=self.time)
+            user_prompt = MULTI_TURN_AGENT_PROMPT_USER_ZH.format(
+                functions=self.functions, history=history
+            )
         elif self.language == "en":
-            system_prompt = MULTI_TURN_AGENT_PROMPT_SYSTEM_EN.format(time = self.time)
-            user_prompt = MULTI_TURN_AGENT_PROMPT_USER_EN.format(functions = self.functions, history = history)
+            system_prompt = MULTI_TURN_AGENT_PROMPT_SYSTEM_EN.format(time=self.time)
+            user_prompt = MULTI_TURN_AGENT_PROMPT_USER_EN.format(
+                functions=self.functions, history=history
+            )
 
         if "o1" not in self.model_name:
             message = [
@@ -120,16 +136,18 @@ class APIAgent_step():
             )
             response = response.choices[0].message.content
         else:
-            message = [{
-                "role": "user",
-                "content": system_prompt+"\n\n"+user_prompt,
-            }]
+            message = [
+                {
+                    "role": "user",
+                    "content": system_prompt + "\n\n" + user_prompt,
+                }
+            ]
             response = self.client.chat.completions.create(
                 messages=message,
                 model=self.model_name,
             )
             response = response.choices[0].message.content
-            
+
         current_message["sender"] = "agent"
 
         pattern = r"\[.*?\]"
