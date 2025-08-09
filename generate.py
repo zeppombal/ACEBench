@@ -38,7 +38,7 @@ def get_args():
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.7,
+        default=0.0,
         help="Temperature parameter to control randomness of model output",
     )
     # Top-p parameter to control diversity of model output, default is 1
@@ -52,7 +52,7 @@ def get_args():
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=1200,
+        default=2048,
         help="Maximum number of tokens to generate",
     )
     # Number of GPUs to use, default is 1
